@@ -51,7 +51,7 @@ main::
     ld [rIE], a
     ld a, $47           ; Enable LYC=LY STAT interrupts
     ld [rSTAT], a
-    ld a, $00           ; Set initial LYC to $08
+    ld a, $00           ; Set initial LYC to $00
     ld [rLYC], a
 
     ld a, %10010001     ; Enable LCD & background tilemap $8000
@@ -65,7 +65,7 @@ main::
 ;--------------------------------------------------------------------
 ;
 ; Handler for LCD STAT interrupt.
-; Called every scanline, increments SCX by one.
+; Called every scanline, increments SCY and LYC by 8.
 ;
 ;--------------------------------------------------------------------
 startScanline::
@@ -81,7 +81,7 @@ startScanline::
 ;--------------------------------------------------------------------
 ;
 ; Handler for VBlank interrupt.
-; Called every frame, resets SCX to zero.
+; Called every frame, resets SCY and LYC to zero.
 ;
 ;--------------------------------------------------------------------
 endFrame::
@@ -93,8 +93,9 @@ endFrame::
 
 ;--------------------------------------------------------------------
 ;
-; Loads Tile 0 with a test pattern and clears
-; the entire background with Tile 0.
+; Loads Tiles 00 - 0F with fancy line pattern tiles and sets
+; the background to those tiles, switching the tile every row
+; of tiles.
 ;
 ; Destroys: AF, HL, C, DE
 ;
@@ -107,11 +108,11 @@ LoadTilesBG::
     ld de, $0010         ; Load DE with $10 (byte count for one tile)
     call memfill16       ; Fill tile 0 memory with pattern
     ld a, c              ; Subtract $11 from tile pattern
-    and c
-    jr z, .breakTileLoad ; Break loop if tile data is 0
-    sub $11
-    ld c, a
-    jr .tileLoadLoop
+    and c                ; Check if tile data is 0
+    jr z, .breakTileLoad ; If so, break loop
+    sub $11              ; Otherwise subtract $11
+    ld c, a              ; Load value from A into C
+    jr .tileLoadLoop     ; And repeat
 
 .breakTileLoad
     ld c, $00            ; Load C with zero
@@ -120,14 +121,14 @@ LoadTilesBG::
 .bgLoadLoop
     ld de, $0040         ; Load DE with byte count for background row
     call memfill16       ; Fill background map with tile 0
-    ld a, c              ; Load C with next tile number
-    inc a
-    and $0F
-    ld c, a
-    ld a, h
-    cp $9C
-    ret z
-    jr .bgLoadLoop
+    ld a, c              ; A with value from C
+    inc a                ; Increment A by one
+    and $0F              ; And limit result to lower 4 bits
+    ld c, a              ; Load value from A into C
+    ld a, h              ; Load upper byte of last written address into A
+    cp $9C               ; And compare to $9C (end of tilemap)
+    ret z                ; If end has been reached, return
+    jr .bgLoadLoop       ; Otherwise repeat
     ret
 
 ;--------------------------------------------------------------------

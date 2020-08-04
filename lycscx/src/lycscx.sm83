@@ -54,10 +54,10 @@ main::
     ld a, $00           ; Set initial LYC to $08
     ld [rLYC], a
 
+    ld hl, rSCX         ; Use HL as pointer for SCX
+
     ld a, %10010001     ; Enable LCD & background tilemap $8000
     ld [rLCDC], a
-
-    ld hl, rSCX
     
     ei                  ; Enable Interrupts
     
@@ -67,7 +67,7 @@ main::
 ;--------------------------------------------------------------------
 ;
 ; Handler for LCD STAT interrupt.
-; Called every scanline, increments SCX by one.
+; Called every scanline, increments SCX by one and LYC by 8.
 ;
 ;--------------------------------------------------------------------
 startScanline::
@@ -85,10 +85,9 @@ startScanline::
 ;
 ;--------------------------------------------------------------------
 endFrame::
-    ld a, $00           ; Reload LYC
-    ld [rLYC], a
-    xor a               ; Reload SCX
-    ld [rSCX], a
+    xor a               ; Clear A register
+    ld [rLYC], a        ; Reload LYC
+    ld [rSCX], a        ; Reload SCX
     ret
 
 ;--------------------------------------------------------------------

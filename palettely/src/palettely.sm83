@@ -67,7 +67,7 @@ main::
 ;--------------------------------------------------------------------
 ;
 ; Handler for LCD STAT interrupt.
-; Called every scanline, increments SCX by one.
+; Called every scanline, rotates BGP << 2 and increments LYC by 8.
 ;
 ;--------------------------------------------------------------------
 startScanline::
@@ -82,7 +82,7 @@ startScanline::
 ;--------------------------------------------------------------------
 ;
 ; Handler for VBlank interrupt.
-; Called every frame, resets SCX to zero.
+; Called every frame, resets LYC to zero and BGP to default.
 ;
 ;--------------------------------------------------------------------
 endFrame::
