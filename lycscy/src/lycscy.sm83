@@ -1,0 +1,181 @@
+include "inc/gbhw.inc"
+
+;--------------------------------------------------------------------
+;
+; Interrupt Handlers
+;
+;--------------------------------------------------------------------
+section	"VBlank", rom0[$0040]
+    call endFrame
+	reti
+section	"LCDC", rom0[$0048]
+    call startScanline
+	reti
+section	"TimerOverflow", rom0[$0050]
+	reti
+section	"Serial", rom0[$0058]
+	reti
+section	"Joypad", rom0[$0060]
+	reti
+
+;--------------------------------------------------------------------
+;
+; Entry point of the program, disables interrupts and
+; continues to the main code section.
+;
+;--------------------------------------------------------------------
+section "EntryPoint", rom0[$100]
+    di 
+    jp main
+
+;--------------------------------------------------------------------
+;
+; Main portion of the ROM containing the actual code
+;
+;--------------------------------------------------------------------
+section "GameCode", rom0[$150]
+
+;--------------------------------------------------------------------
+;
+; Main function of the program called in the entry point
+;
+;--------------------------------------------------------------------
+main::
+    call StopLCD        ; Stop LCD
+    call LoadTilesBG    ; Load background tiles
+
+    ld a, %11100100     ; Initialize BGP
+    ld [rBGP], a
+
+    ld a, $03           ; Allow only VBlank & LCD STAT interrupts
+    ld [rIE], a
+    ld a, $47           ; Enable LYC=LY STAT interrupts
+    ld [rSTAT], a
+    ld a, $00           ; Set initial LYC to $08
+    ld [rLYC], a
+
+    ld a, %10010001     ; Enable LCD & background tilemap $8000
+    ld [rLCDC], a
+    
+    ei                  ; Enable Interrupts
+    
+.lockup                 ; Prevent PC from going to crazy places
+    jr .lockup
+
+;--------------------------------------------------------------------
+;
+; Handler for LCD STAT interrupt.
+; Called every scanline, increments SCX by one.
+;
+;--------------------------------------------------------------------
+startScanline::
+    ld a, [rSCY]        ; Increment SCY by 8
+    sub a, $08
+    ld [rSCY], a
+    
+    ld a, [rLYC]        ; Set next LYC
+    add a, $08
+    ld [rLYC], a
+    ret
+
+;--------------------------------------------------------------------
+;
+; Handler for VBlank interrupt.
+; Called every frame, resets SCX to zero.
+;
+;--------------------------------------------------------------------
+endFrame::
+    ld a, $00           ; Reload LYC
+    ld [rLYC], a
+    xor a               ; Reload SCY
+    ld [rSCY], a
+    ret
+
+;--------------------------------------------------------------------
+;
+; Loads Tile 0 with a test pattern and clears
+; the entire background with Tile 0.
+;
+; Destroys: AF, HL, C, DE
+;
+;--------------------------------------------------------------------
+LoadTilesBG::
+    ld c, $FF            ; Load C with tile pattern
+    ld hl, $8000         ; Load HL with base pointer for tileset
+
+.tileLoadLoop
+    ld de, $0010         ; Load DE with $10 (byte count for one tile)
+    call memfill16       ; Fill tile 0 memory with pattern
+    ld a, c              ; Subtract $11 from tile pattern
+    and c
+    jr z, .breakTileLoad ; Break loop if tile data is 0
+    sub $11
+    ld c, a
+    jr .tileLoadLoop
+
+.breakTileLoad
+    ld c, $00            ; Load C with zero
+    ld hl, $9800         ; Load HL with base for background tilemap
+
+.bgLoadLoop
+    ld de, $0040         ; Load DE with byte count for background row
+    call memfill16       ; Fill background map with tile 0
+    ld a, c              ; Load C with next tile number
+    inc a
+    and $0F
+    ld c, a
+    ld a, h
+    cp $9C
+    ret z
+    jr .bgLoadLoop
+    ret
+
+;--------------------------------------------------------------------
+;
+; Fills all bytes in a memory region with a certain value.
+;  - HL > Destination base pointer
+;  - DE > Amount of bytes to write
+;  - C  > Byte to write
+;
+; Destroys: AF, HL, DE
+;
+;--------------------------------------------------------------------
+memfill16::
+.memfill16Loop
+    ld a,c                  ; Load C into accumulator for memory writes
+    ld [hli], a             ; Load memory at HL and increment pointer
+    dec de                  ; Decrement byte counter
+    ld a,e                  ; Load A with lower nibble of byte counter
+    and e                   ; Set zero flag if lower nibble of byte counter is 0
+    jr nz, .memfill16Loop   ; Restart memory load process if lower nibble != 0
+    ld a,d                  ; Load A with higher nibble of byte counter
+    and d                   ; Set zero flag if higher nibble of byte counter is 0
+    jr nz, .memfill16Loop   ; Restart memory load process if higher nibble != 0
+    ret
+
+;--------------------------------------------------------------------
+;
+; Waits for the next VBlank period and stops LCD.
+;
+; Destroys: AF
+;
+;--------------------------------------------------------------------
+StopLCD::
+    call WaitVBlank         ; Wait for VBlank
+    xor a                   ; Set A to 0
+    ld [rLCDC], a           ; Load 0 to LCDC
+    ret
+
+;--------------------------------------------------------------------
+;
+; Pauses operation until the next VBlank period.
+;
+; Destroys: AF
+;
+;--------------------------------------------------------------------
+WaitVBlank::
+.vblLoop
+    ld a, [rLY]             ; Load current LY into A
+    cp 144                  ; Check if scanline is 144 (VBlank)
+    jr nz, .vblLoop         ; If not, repeat
+    ret
