@@ -1,0 +1,324 @@
+include "inc/gbhw.inc"
+
+;--------------------------------------------------------------------
+;
+; Interrupt Handlers
+;
+;--------------------------------------------------------------------
+section	"VBlank", rom0[$0040]
+    call HandleVBlank
+	reti
+section	"LCDC", rom0[$0048]
+    call HandleStat
+	reti
+section	"TimerOverflow", rom0[$0050]
+	reti
+section	"Serial", rom0[$0058]
+	reti
+section	"Joypad", rom0[$0060]
+	reti
+
+;--------------------------------------------------------------------
+;
+; Entry point of the program, disables interrupts and
+; continues to the main code section.
+;
+;--------------------------------------------------------------------
+section "EntryPoint", rom0[$100]
+    di 
+    jp Main
+
+;--------------------------------------------------------------------
+;
+; Main portion of the ROM containing the actual code
+;
+;--------------------------------------------------------------------
+section "GameCode", rom0[$150]
+
+;--------------------------------------------------------------------
+;
+; Main function of the program called in the entry point
+;
+;--------------------------------------------------------------------
+Main::
+    call StopLCD        ; Stop LCD
+    call LoadBackground ; Load BG data into VRAM
+
+    ld hl, $C000        ; Initialize RAM
+    ld a, 8             ; Load A with size of used RAM + 1
+    ld b, a
+    xor a
+.ramInitLoop
+    ld [hli], a
+    dec b
+    jr nz, .ramInitLoop
+
+    ld a, %11100100     ; Initialize BGP
+    ld [rBGP], a
+    ld a, %00100100     ; Initialize OBP0
+    ld [rOBP0], a
+    ld a, %01000111     ; Initialize STAT
+    ld [rSTAT], a
+    ld a, 96            ; Initialize WY
+    ld [rWY], a
+    ld a, 7             ; Initialize WX
+    ld [rWX], a
+    xor a               ; Initialize LYC
+    ld [rLYC], a
+    ld [rIF], a         ; Clear IF
+    ld a, %00000011     ; Initialize IE
+    ld [rIE], a
+    ei
+    ld a, %11010011     ; Restart LCD
+    ld [rLCDC], a
+    
+.lockup                 ; Prevent PC from going to crazy places
+    jr .lockup
+
+;--------------------------------------------------------------------
+;
+; VBlank interrupt handler
+;
+;--------------------------------------------------------------------
+HandleVBlank::
+    ld hl, $C005                 ; Update Cloud Scroll value
+    inc [hl]
+    ld a, 3
+    cp a, [hl]
+    jr z, .doCloudScroll
+    jr .postCloudScroll
+.doCloudScroll
+    xor a
+    ld [hl], a
+    ld hl, $C000
+    inc [hl]
+.postCloudScroll
+
+    ld hl, $C006
+    inc [hl]
+    ld a, [hl]
+    cp 7
+    jr nz, .skipReload
+    ld a, [$C007]
+    and a
+    jr nz, .loadDecrRipple
+    inc a
+    ld [$C007], a
+    jr .endModeSwap
+.loadDecrRipple
+    xor a
+    ld [$C007], a
+    jr .endModeSwap
+.endModeSwap
+    xor a
+    ld [hl], a
+.skipReload
+    sla a
+    sla a
+    ld h, $FE
+    ld l, a
+    ld a, [$C007]
+    and a
+    jr nz, .incrRipple
+    dec [hl]
+    jr .endRipple
+.incrRipple
+    inc [hl]
+    jr .endRipple
+.endRipple
+
+    ret
+
+;--------------------------------------------------------------------
+;
+; STAT interrupt handler
+;
+;--------------------------------------------------------------------
+HandleStat::
+    ld a, [rLYC]
+    cp 0
+    jr z, .scxNullTop
+    cp 8
+    jr z, .cloudScroll
+    cp 32
+    jp z, .heatlineWave
+    cp 48
+    jr z, .scxNullMid
+    cp 63
+    jr z, .waterBgpChange
+    cp 64
+    jr z, .slowWater
+    cp 72
+    jr z, .midWater
+    cp 88
+    jr z, .fastWater
+    cp 96
+    jr z, .enableWindow
+    cp 104
+    jr z, .scxNullLow
+.scxNullTop
+    xor a
+    ld [rSCX], a
+    ld a, 8
+    ld [rLYC], a
+    ret
+.cloudScroll
+    ld a, [$C000]
+    ld [rSCX], a
+    ld a, 32
+    ld [rLYC], a
+    ret
+.heatlineWave
+    xor a
+    ld [rSCX], a
+    ld a, 48
+    ld [rLYC], a
+    ret
+.scxNullMid
+    xor a
+    ld [rSCX], a
+    ld a, 63
+    ld [rLYC], a
+    ret
+.waterBgpChange
+    ld a, [rSTAT]
+    and 2
+    jr z, .actualWaterBgpChange
+    ld a, %01001111
+    ld [rSTAT], a
+.actualWaterBgpChange
+    ld a, %11100101
+    ld [rBGP], a
+    ld a, %01000111
+    ld [rSTAT], a
+    ld a, 64
+    ld [rLYC], a
+    ret
+.slowWater
+    ld a, 72
+    ld [rLYC], a
+    ret
+.midWater
+    ld a, 88
+    ld [rLYC], a
+    ret
+.fastWater
+    ld a, 96
+    ld [rLYC], a
+    ret
+.enableWindow
+    ld a, %11110011
+    ld [rLCDC], a
+    ld a, 104
+    ld [rLYC], a
+    ret
+.scxNullLow
+    ld a, %11100100
+    ld [rBGP], a
+    ld a, %11010011
+    ld [rLCDC], a
+    xor a
+    ld [rSCX], a
+    ld [rLYC], a
+    ret
+
+;--------------------------------------------------------------------
+;
+; Copies the BGMap sections into VRAM
+;
+;--------------------------------------------------------------------
+LoadBackground::
+    ld hl, $8000
+    ld de, BGTiles
+    ld bc, BGTilesEnd - BGTiles
+    call memcpy
+
+    ld hl, $9800
+    ld de, BGMap
+    ld bc, BGMapEnd - BGMap
+    call memcpy
+
+    ld hl, $9C00
+    ld de, WindowMap
+    ld bc, WindowMapEnd - WindowMap
+    call memcpy
+
+    ld hl, $FE00
+    ld de, InitOAM
+    ld bc, InitOAMEnd - InitOAM
+    call memcpy
+
+    ret
+    
+;--------------------------------------------------------------------
+;
+; Copies BC amount of bytes from DE and following to HL and following
+;
+;--------------------------------------------------------------------
+memcpy::
+.memcpyLoop
+    ld a, [de]
+    ld [hli], a
+    inc de
+    dec bc
+    ld a, b
+    or c
+    jr nz, .memcpyLoop
+    ret
+
+;--------------------------------------------------------------------
+;
+; Waits for the next VBlank period and stops LCD.
+;
+; Destroys: AF
+;
+;--------------------------------------------------------------------
+StopLCD::
+    call WaitVBlank         ; Wait for VBlank
+    xor a                   ; Set A to 0
+    ld [rLCDC], a           ; Load 0 to LCDC
+    ret
+
+;--------------------------------------------------------------------
+;
+; Pauses operation until the next VBlank period.
+;
+; Destroys: AF
+;
+;--------------------------------------------------------------------
+WaitVBlank::
+.vblLoop
+    ld a, [rLY]             ; Load current LY into A
+    cp 144                  ; Check if scanline is 144 (VBlank)
+    jr nz, .vblLoop         ; If not, repeat
+    ret
+
+;--------------------------------------------------------------------
+;
+; Background Memory
+;
+;--------------------------------------------------------------------
+section "BGTiles", rom0
+BGTiles:
+incbin "inc/bgtiles.bin"
+BGTilesEnd:
+
+section "BGMap", rom0
+BGMap:
+incbin "inc/bgmap.bin"
+BGMapEnd:
+
+section "WindowMap", rom0
+WindowMap:
+incbin "inc/wdmap.bin"
+WindowMapEnd:
+
+;--------------------------------------------------------------------
+;
+; OAM Memory
+;
+;--------------------------------------------------------------------
+section "InitOAM", rom0
+InitOAM:
+incbin "inc/initoam.bin"
+InitOAMEnd:
