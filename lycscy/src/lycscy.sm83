@@ -69,7 +69,7 @@ main::
 ;
 ;--------------------------------------------------------------------
 startScanline::
-    ld a, [rSCY]        ; Increment SCY by 8
+    ld a, [rSCY]        ; Subtract 8 from SCY
     sub a, $08
     ld [rSCY], a
     
