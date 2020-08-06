@@ -6,11 +6,9 @@ include "inc/gbhw.inc"
 ;
 ;--------------------------------------------------------------------
 section	"VBlank", rom0[$0040]
-    call HandleVBlank
-	reti
+    jp HandleVBlank
 section	"LCDC", rom0[$0048]
-    call HandleStat
-	reti
+    jp HandleStat
 section	"TimerOverflow", rom0[$0050]
 	reti
 section	"Serial", rom0[$0058]
@@ -127,7 +125,7 @@ HandleVBlank::
     jr .endRipple
 .endRipple
 
-    ret
+    reti
 
 ;--------------------------------------------------------------------
 ;
@@ -154,32 +152,32 @@ HandleStat::
     jr z, .fastWater
     cp 96
     jr z, .enableWindow
-    cp 104
-    jr z, .scxNullLow
+    cp 103
+    jr z, .disableWindow
 .scxNullTop
     xor a
     ld [rSCX], a
     ld a, 8
     ld [rLYC], a
-    ret
+    reti
 .cloudScroll
     ld a, [$C000]
     ld [rSCX], a
     ld a, 32
     ld [rLYC], a
-    ret
+    reti
 .heatlineWave
     xor a
     ld [rSCX], a
     ld a, 48
     ld [rLYC], a
-    ret
+    reti
 .scxNullMid
     xor a
     ld [rSCX], a
     ld a, 63
     ld [rLYC], a
-    ret
+    reti
 .waterBgpChange
     ld a, [rSTAT]
     and 2
@@ -193,34 +191,43 @@ HandleStat::
     ld [rSTAT], a
     ld a, 64
     ld [rLYC], a
-    ret
+    reti
 .slowWater
     ld a, 72
     ld [rLYC], a
-    ret
+    reti
 .midWater
     ld a, 88
     ld [rLYC], a
-    ret
+    reti
 .fastWater
     ld a, 96
     ld [rLYC], a
-    ret
+    reti
 .enableWindow
     ld a, %11110011
     ld [rLCDC], a
-    ld a, 104
+    ld a, 103
     ld [rLYC], a
-    ret
-.scxNullLow
-    ld a, %11100100
-    ld [rBGP], a
+    reti
+.disableWindow
+    ld a, [rSTAT]
+    and %00001000
+    jr nz, .actualWindowDisable
+    ld a, %01001111
+    ld [rSTAT], a
+    reti
+.actualWindowDisable
     ld a, %11010011
     ld [rLCDC], a
+    ld a, %01000111
+    ld [rSTAT], a
+    ld a, %11100100
+    ld [rBGP], a
     xor a
     ld [rSCX], a
     ld [rLYC], a
-    ret
+    reti
 
 ;--------------------------------------------------------------------
 ;
