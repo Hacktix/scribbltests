@@ -43,11 +43,11 @@ MainLoop:
 HandleVBlank::
     call PrintRegs                     ; Update register display
 
-    ld a, [$C003]                      ; Load Joypad Lock counter
+    ld a, [$C002]                      ; Load Joypad Lock counter
     and a                              ; Set zero flag if 0
     jp z, .skipCooldown                ; If zero, skip cooldown
     dec a                              ; Decrement A by one
-    ld [$C003], a                      ; Load A into Joypad Lock RAM
+    ld [$C002], a                      ; Load A into Joypad Lock RAM
     reti                               ; And wait for next VBlank
 .skipCooldown
 
@@ -66,7 +66,7 @@ HandleVBlank::
 .noUpOverflow
     ld [$C001], a                      ; Load A into NOP RAM
     ld a, $05                          ; Load A with Joypad Lock
-    ld [$C003], a                      ; And load into RAM
+    ld [$C002], a                      ; And load into RAM
     reti                               ; And wait for next VBlank
 .upNotPressed
 
@@ -82,7 +82,7 @@ HandleVBlank::
 .noDownOverflow
     ld [$C001], a                      ; Load A into NOP RAM
     ld a, $05                          ; Load A with Joypad Lock
-    ld [$C003], a                      ; And load into RAM
+    ld [$C002], a                      ; And load into RAM
     reti                               ; And wait for next VBlank
 .downNotPressed
 
@@ -95,7 +95,8 @@ HandleVBlank::
 
     ; Joypad START
     ld a, $05                          ; Load A with Joypad Lock
-    ld [$C003], a                      ; And load into RAM
+    ld [$C002], a                      ; And load into RAM
+    pop hl                             ; Pop return vector from stack
     jp RunTest                         ; Otherwise start test
 .startNotPressed
     reti
