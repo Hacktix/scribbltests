@@ -62,7 +62,7 @@ HandleVBlank::
     ld a, [$C001]                      ; Load NOP count into A
     inc a                              ; Increment A
     jr nz, .noUpOverflow               ; Check if overflow
-    ld a, $02                          ; If so, load minimum
+    ld a, $01                          ; If so, load minimum
 .noUpOverflow
     ld [$C001], a                      ; Load A into NOP RAM
     ld a, $05                          ; Load A with Joypad Lock
@@ -76,8 +76,7 @@ HandleVBlank::
     ; Joypad DOWN
     ld a, [$C001]                      ; Load NOP count into A
     dec a                              ; Decrement A
-    cp 1                               ; Check if underflow
-    jr nz, .noDownOverflow             ; If not, skip reload
+    jr nz, .noDownOverflow             ; If not zero, skip reload
     ld a, $FF                          ; Otherwise load maximum
 .noDownOverflow
     ld [$C001], a                      ; Load A into NOP RAM
@@ -124,10 +123,22 @@ RunTest::
 
     ld c, $41                          ; Load $41 for STAT read
 
+    ld a, [$C001]                      ; Load NOP count into A
+    cp 1                               ; Check if running 1 NOP
+    jr z, .singleNopTest               ; If so, run different test routine
+
     ld a, %10000001                    ; Enable LCD and Background
     ld [rLCDC], a
 
     jp hl                              ; Start clockslide NOPs
+
+.singleNopTest                         ; Skips JP HL, saving 1 NOP
+    ld a, %10000001                    ; Enable LCD and Background
+    ld [rLCDC], a
+
+    ld a, [$FF00+c]                    ; Acts as NOP before read
+    ld [$C000], a                      ; Load STAT into memory
+    jp PostTestCleanup
 
 ;--------------------------------------------------------------------
 ; Disables LCD, prints test results, enables LCD, returns to Main
@@ -216,7 +227,7 @@ InitTest::
     ld de, strInstr                    ; Load 'Press START' string
     call PrintStr                      ; And print
 
-    ld a, $02                          ; Load A with minimum NOPs,
+    ld a, $01                          ; Load A with minimum NOPs,
     ld [$C001], a                      ; load into NOP reg
     call PrintRegs                     ; and print to screen
     
@@ -383,7 +394,7 @@ strNOP:
 strInstr:
     db "Press START to run test", 0
 strTest:
-    db "Test: OK", 0
+    db "Test: ??", 0
 strOK:
     db "OK  ", 0
 strErr:
