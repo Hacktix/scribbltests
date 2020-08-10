@@ -420,7 +420,7 @@ REPT 51
     db $80
 ENDR
 REPT 20
-    db $81
+    db $82
 ENDR
 REPT 43
     db $83
@@ -429,7 +429,7 @@ REPT 51
     db $80
 ENDR
 REPT 20
-    db $81
+    db $82
 ENDR
 REPT 43
     db $83
