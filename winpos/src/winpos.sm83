@@ -1,0 +1,381 @@
+include "inc/hardware.inc"
+
+;--------------------------------------------------------------------
+; # RAM MAP #
+;  $C000 - WX Value
+;  $C001 - WY Value
+;  $C002 - Joypad Cooldown
+;--------------------------------------------------------------------
+
+section	"VBlank", rom0[$0040]
+	jp HandleVBlank
+section	"LCDC", rom0[$0048]
+	reti
+section	"TimerOverflow", rom0[$0050]
+	reti
+section	"Serial", rom0[$0058]
+	reti
+section	"Joypad", rom0[$0060]
+	reti
+
+
+
+section "EntryPoint", rom0[$100]
+    di 
+    jp Main
+
+
+
+section "GameCode", rom0[$150]
+;--------------------------------------------------------------------
+; Main Function of the Test
+;--------------------------------------------------------------------
+Main::
+    call StopLCD                       ; Stop LCD to load VRAM
+    call Initialize                    ; Load VRAM, initialize regs
+
+MainLoop:
+    halt
+    jr MainLoop
+
+;--------------------------------------------------------------------
+; VBlank Handler
+;--------------------------------------------------------------------
+HandleVBlank::
+    call PrintRegs                     ; Update register display
+
+    ld a, [$C000]
+    ld [rWX], a
+    ld a, [$C001]
+    ld [rWY], a
+
+    ld a, [$C002]                      ; Load Joypad Lock counter
+    and a                              ; Set zero flag if 0
+    jp z, .skipCooldown                ; If zero, skip cooldown
+    dec a                              ; Decrement A by one
+    ld [$C002], a                      ; Load A into Joypad Lock RAM
+    reti                               ; And wait for next VBlank
+.skipCooldown
+
+    ld a, %11101111                    ; Check direction keys
+    ld [rP1], a                        ; Load multiplexer value
+    ld a, [rP1]                        ; Load button states
+
+    ; Joypad RIGHT
+    bit 0, a                           ; Check if Right pressed
+    jr nz, .rightNotPressed            ; If not, skip
+    ld a, [$C000]                      ; Load WX into A
+    inc a                              ; Increment A
+    ld [$C000], a                      ; Load A into WX RAM
+    ld a, $05                          ; Load A with Joypad Lock
+    ld [$C002], a                      ; And load into RAM
+    reti                               ; And wait for next VBlank
+.rightNotPressed
+
+    ; Joypad LEFT
+    bit 1, a                           ; Check if Left pressed
+    jr nz, .leftNotPressed             ; If not, skip
+    ld a, [$C000]                      ; Load WX into A
+    dec a                              ; Decrement A
+    ld [$C000], a                      ; Load A into WX RAM
+    ld a, $05                          ; Load A with Joypad Lock
+    ld [$C002], a                      ; And load into RAM
+    reti                               ; And wait for next VBlank
+.leftNotPressed
+
+    ; Joypad UP
+    bit 2, a                           ; Check if Up pressed
+    jr nz, .upNotPressed               ; If not, skip
+    ld a, [$C001]                      ; Load WY into A
+    dec a                              ; Decrement A
+    ld [$C001], a                      ; Load A into WY RAM
+    ld a, $05                          ; Load A with Joypad Lock
+    ld [$C002], a                      ; And load into RAM
+    reti                               ; And wait for next VBlank
+.upNotPressed
+
+    bit 3, a                           ; Check if Down pressed
+    jr nz, .downNotPressed             ; If not, skip
+
+    ; Joypad DOWN
+    ld a, [$C001]                      ; Load WY into A
+    inc a                              ; Increment A
+    ld [$C001], a                      ; Load A into WY RAM
+    ld a, $05                          ; Load A with Joypad Lock
+    ld [$C002], a                      ; And load into RAM
+    reti                               ; And wait for next VBlank
+.downNotPressed
+
+    reti
+
+;--------------------------------------------------------------------
+; Initializes Registers for Test
+;--------------------------------------------------------------------
+Initialize::
+    call InitRAM                       ; Initialize RAM with $00
+    call LoadFont                      ; Load font tiles into VRAM
+    call LoadGraphics                  ; Load graphic tiles into VRAM
+    call InitOAM                       ; Initialize OAM
+
+    xor a                              ; Load A with base WY
+    ld [$C001], a                      ; Load into WY RAM
+    ld [rWY], a                        ; And into WY register
+
+    ld a, $07                          ; Load A with base WX
+    ld [$C000], a                      ; Load into WX RAM
+    ld [rWX], a                        ; And into WX register
+    call PrintRegs                     ; and print to screen
+    
+    ld a, %11100100                    ; Initialize BGP
+    ld [rBGP], a
+
+    ld a, $01                          ; Allow only VBlank IRQs
+    ld [rIE], a
+    xor a                              ; Clear any remaining IRQs
+    ld [rIF], a
+    ei                                 ; Enable interrupts
+
+    ld [rSCY], a                       ; Initialize SCY
+    ld [rSCX], a                       ; Initialize SCX
+    ld [rNR52], a                      ; Turn off sound
+    ld [rSTAT], a                      ; Disable all STAT triggers
+
+    ld a, %11100011                    ; Enable LCD, Background, Sprites and Window
+    ld [rLCDC], a
+
+    ret
+
+;--------------------------------------------------------------------
+; Initializes OAM with all values for displaying stuff
+;--------------------------------------------------------------------
+InitOAM::
+    call ClearOAM             ; Clear OAM of residue sprites
+    ld hl, $FE00              ; Set OAM base pointer
+
+    ld a, $FF                 ; Load all-black
+    ld [rOBP0], a             ; Into OBP0
+
+    ; Load chars as sprites into OAM
+    ld bc, $1109
+    ld d, "0"
+    call LoadCharSprite
+    ld bc, $1111
+    ld d, "7"
+    call LoadCharSprite
+    ld bc, $1119
+    ld d, "/"
+    call LoadCharSprite
+    ld bc, $1121
+    ld d, "0"
+    call LoadCharSprite
+    ld bc, $1129
+    ld d, "0"
+    call LoadCharSprite
+
+    ret
+
+;--------------------------------------------------------------------
+; Loads a new OAM char sprite based on the given input
+;
+; Inputs:
+;  - B : Y-Position
+;  - C : X-Position
+;  - D : Character to draw
+;--------------------------------------------------------------------
+LoadCharSprite::
+    ld a, b              ; Load Y Value
+    ld [hli], a          ; Into OAM
+    ld a, c              ; Load X Value
+    ld [hli], a          ; Into OAM
+    ld a, d              ; Load tile number
+    ld [hli], a          ; Into OAM
+    xor a                ; Set A to 0
+    ld [hli], a          ; Load as sprite flags
+    ret
+
+;--------------------------------------------------------------------
+; Initializes OAM with zero
+;--------------------------------------------------------------------
+ClearOAM::
+    ld hl, $FE00         ; Load OAM base pointer
+.clearOAM
+    xor a                ; Set A to 0
+    ld [hli], a          ; Load into HL++
+    ld a, l              ; Check lower address byte
+    cp $A0               ; For $A0 (end of OAM)
+    jr nz, .clearOAM     ; If not, repeat
+    ret
+
+;--------------------------------------------------------------------
+; Prints the values at $C000 and $C001 to the screen.
+;
+; Inputs:
+;  - [$C000] : WX
+;  - [$C001] : WY
+;--------------------------------------------------------------------
+PrintRegs::
+    ld a, [$C000]
+    call AtoASCII
+    ld a, d
+    ld [$FE02], a
+    ld a, e
+    ld [$FE06], a
+
+    ld a, [$C001]
+    call AtoASCII
+    ld a, d
+    ld [$FE0E], a
+    ld a, e
+    ld [$FE12], a
+    ret
+
+;--------------------------------------------------------------------
+; Converts the value in A reg to two hex ASCII bytes
+;
+; Inputs:
+;  - A : Value to convert
+;
+; Outputs:
+;  - DE : ASCII bytes
+;
+; Source:
+; https://stackoverflow.com/questions/22838444/convert-an-8bit-number-to-hex-in-z80-assembler
+;--------------------------------------------------------------------
+AtoASCII::
+    ld c, a
+    call .num1
+    ld d, a
+    ld a, c
+    call .num2
+    ld e, a
+    ret
+.num1
+    rra 
+    rra 
+    rra 
+    rra 
+.num2
+    or $F0
+    daa 
+    add a, $A0
+    adc a, $40
+    ret
+
+;--------------------------------------------------------------------
+; Initializes RAM $C000-$CFFF with zero
+;--------------------------------------------------------------------
+InitRAM::
+    ld hl, $C000
+.initByteRAM
+    xor a
+    ld [hli], a
+    ld a, h
+    cp $D0
+    jr nz, .initByteRAM
+    ret
+
+;--------------------------------------------------------------------
+; Loads font tiles into VRAM
+;--------------------------------------------------------------------
+LoadFont::
+    ld hl, $8000                       ; Tile Data starting address
+    ld de, FontTiles                   ; ROM Tile Pointer
+    ld bc, FontTilesEnd - FontTiles    ; Tile Data byte count
+.copyFont
+    ld a, [de]                         ; Load A with tile data byte
+    ld [hli], a                        ; And load into VRAM
+    inc de                             ; Go to next byte in ROM
+    dec bc                             ; And decrement count
+    ld a, b                            ; Load high byte of count
+    or c                               ; And OR with high byte
+    jr nz, .copyFont                   ; Repeat if count is not 0
+    ret 
+
+;--------------------------------------------------------------------
+; Loads graphics tiles into VRAM
+;--------------------------------------------------------------------
+LoadGraphics::
+
+    ld hl, $9000
+    ld de, Tileset
+    ld bc, TilesetEnd - Tileset
+.copyTileset
+    ld a, [de]                         ; Load A with tile data byte
+    ld [hli], a                        ; And load into VRAM
+    inc de                             ; Go to next byte in ROM
+    dec bc                             ; And decrement count
+    ld a, b                            ; Load high byte of count
+    or c                               ; And OR with high byte
+    jr nz, .copyTileset                ; Repeat if count is not 0
+
+    ld hl, $9800
+    ld de, BackgroundTilemap
+    ld bc, BackgroundTilemapEnd - BackgroundTilemap
+.copyBackgroundTilemap
+    ld a, [de]                         ; Load A with tile data byte
+    ld [hli], a                        ; And load into VRAM
+    inc de                             ; Go to next byte in ROM
+    dec bc                             ; And decrement count
+    ld a, b                            ; Load high byte of count
+    or c                               ; And OR with high byte
+    jr nz, .copyBackgroundTilemap      ; Repeat if count is not 0
+
+    ld hl, $9C00
+    ld de, WindowTilemap
+    ld bc, WindowTilemapEnd - WindowTilemap
+.copyWindowTilemap
+    ld a, [de]                         ; Load A with tile data byte
+    ld [hli], a                        ; And load into VRAM
+    inc de                             ; Go to next byte in ROM
+    dec bc                             ; And decrement count
+    ld a, b                            ; Load high byte of count
+    or c                               ; And OR with high byte
+    jr nz, .copyWindowTilemap          ; Repeat if count is not 0
+
+    ret
+
+;--------------------------------------------------------------------
+; Waits for VBlank then stops LCD
+;--------------------------------------------------------------------
+StopLCD::
+    call WaitVBlank                    ; Wait for VBlank
+    xor a                              ; Set A to 0
+    ld [rLCDC], a                      ; Load 0 to LCDC
+    ret
+
+;--------------------------------------------------------------------
+; Waits for VBlank then returns
+;--------------------------------------------------------------------
+WaitVBlank::
+.vblLoop
+    ld a, [rLY]                        ; Load current LY into A
+    cp 144                             ; Check if scanline is 144 (VBlank)
+    jr nz, .vblLoop                    ; If not, repeat
+    ret
+
+;--------------------------------------------------------------------
+;
+; # DATA SECTION
+;
+;--------------------------------------------------------------------
+
+;--------------------------------------------------------------------
+; Tile Data
+;--------------------------------------------------------------------
+section "Tiles", rom0
+
+FontTiles:
+incbin "inc/font.chr"
+FontTilesEnd:
+
+Tileset:
+incbin "inc/tileset.bin"
+TilesetEnd:
+
+WindowTilemap:
+incbin "inc/window.bin"
+WindowTilemapEnd:
+
+BackgroundTilemap:
+incbin "inc/background.bin"
+BackgroundTilemapEnd:
