@@ -2,6 +2,11 @@
 
 The STATcount ROM is intended as an emulator debugging tool to assist with PPU timings. It allows for running a variable amount of machine cycles (referred to as NOPs) before storing the status of the STAT register.
 
+## Verified on:
+
+* ✔ Gameboy Pocket (MGB 9638 D)
+* ✔ Gameboy Color (CPU CGB D)
+
 ## Usage
 
 After starting up the ROM the amount of machine cycles to wait can be modified using the Up / Down buttons. The minimum amount of NOPs is 1 (as memory read instructions *should* have a latency before actually reading the value from memory).

@@ -406,11 +406,21 @@ strErr:
 ;--------------------------------------------------------------------
 section "TestDataSTAT", rom0[$1000]
 StatTestData:
-; # Expected Behavior
-; 20 Cycles of OAM Search
-; 43 Cycles of Drawing (Background only, no Window, no Scrolling)
-; 51 Cycles of HBlank
-; Repeat
+
+; Scanline 0
+; NOP 0 cannot be read => unknown
+db $FF, $80, $81
+REPT 17
+    db $80
+ENDR
+REPT 43
+    db $83
+ENDR
+REPT 51
+    db $80
+ENDR
+
+; Scanline 1
 REPT 20
     db $82
 ENDR
@@ -420,19 +430,12 @@ ENDR
 REPT 51
     db $80
 ENDR
+
+; Scanline 2
 REPT 20
     db $82
 ENDR
-REPT 43
-    db $83
-ENDR
-REPT 51
-    db $80
-ENDR
-REPT 20
-    db $82
-ENDR
-REPT 43
+REPT 8             ; Only 8 more to add up to 256 bytes of test data
     db $83
 ENDR
 
