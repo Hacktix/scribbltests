@@ -2,6 +2,11 @@
 
 The SCXLY test is intended to test basic functionality of SCX and STAT/VBlank interrupts. It draws straight, vertical lines onto the screen and sets SCX to the same value as LY for each scanline, creating a "diagonal line" sort of effect.
 
+## Verified on:
+
+* ✔ Gameboy Pocket (MGB 9638 D)
+* ✔ Gameboy Color (CPU CGB D)
+
 ## Requirements
 
 * Functional CPU

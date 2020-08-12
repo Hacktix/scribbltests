@@ -4,6 +4,11 @@ The Fairylake Test comes closer to a demo than a proper test ROM. It utilizes a 
 
 **Note:** This test is currently WIP. Expect major changes.
 
+## Verified on:
+
+* ✔ Gameboy Pocket (MGB 9638 D)
+* ✔ Gameboy Color (CPU CGB D)
+
 ## Expected Output
 
 ![expected](./screenshots/expected.gif)

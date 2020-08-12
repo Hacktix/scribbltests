@@ -2,6 +2,11 @@
 
 The PaletteLY test is intended to test basic functionality of the BGP register and STAT/VBlank interrupts. It draws solid colored tiles to the background and changes the value of the BGP register every 8 scanlines using LY=LYC interrupts.
 
+## Verified on:
+
+* ✔ Gameboy Pocket (MGB 9638 D)
+* ✔ Gameboy Color (CPU CGB D)
+
 ## Requirements
 
 * Functional CPU

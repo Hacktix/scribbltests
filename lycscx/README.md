@@ -2,6 +2,11 @@
 
 The LYCSXC test is intended to test basic functionality of SCX and LY=LYC STAT interrupts. It draws vertical lines onto the screen and changes SCX every 8 scanlines using LY=LYC interrupts.
 
+## Verified on:
+
+* ✔ Gameboy Pocket (MGB 9638 D)
+* ✔ Gameboy Color (CPU CGB D)
+
 ## Requirements
 
 * Functional CPU
