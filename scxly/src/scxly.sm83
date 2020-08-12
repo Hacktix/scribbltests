@@ -59,6 +59,7 @@ main::
     ei                  ; Enable Interrupts
     
 .lockup                 ; Prevent PC from going to crazy places
+    halt
     jr .lockup
 
 ;--------------------------------------------------------------------
