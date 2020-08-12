@@ -71,6 +71,7 @@ Main::
     ld [rLCDC], a
     
 .lockup                 ; Prevent PC from going to crazy places
+    halt
     jr .lockup
 
 ;--------------------------------------------------------------------

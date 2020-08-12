@@ -35,6 +35,7 @@ Main::
     call InitTest                      ; Load VRAM, initialize regs
 
 MainLoop:
+    halt
     jr MainLoop
 
 ;--------------------------------------------------------------------
