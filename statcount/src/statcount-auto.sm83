@@ -1,0 +1,388 @@
+include "inc/hardware.inc"
+
+;--------------------------------------------------------------------
+; # RAM MAP #
+;  $C000 - Last stored STAT value
+;  $C001 - NOP counter
+;  $C002 - Joypad Cooldown
+;--------------------------------------------------------------------
+
+section	"VBlank", rom0[$0040]
+	reti
+section	"LCDC", rom0[$0048]
+	reti
+section	"TimerOverflow", rom0[$0050]
+	reti
+section	"Serial", rom0[$0058]
+	reti
+section	"Joypad", rom0[$0060]
+	reti
+
+
+
+section "EntryPoint", rom0[$100]
+    di 
+    jp Main
+
+
+
+section "GameCode", rom0[$150]
+;--------------------------------------------------------------------
+; Main Function of the Test
+;--------------------------------------------------------------------
+Main::
+    call StopLCD                       ; Stop LCD to load VRAM
+    call InitTest                      ; Load VRAM, initialize regs
+    call AutoTest                      ; Run all tests
+    call CompareResults                ; Process results
+
+    ld a, b
+    and a
+    call z, TestPassed
+    call nz, TestFailed
+
+    ld a, %10000001                    ; Enable LCD and Background
+    ld [rLCDC], a
+
+MainLoop:
+    halt
+    jr MainLoop
+
+;--------------------------------------------------------------------
+; Loads VRAM to display test fail message
+;--------------------------------------------------------------------
+TestFailed::
+    ld hl, $9821
+    ld de, strFail
+    call PrintStr
+    
+    ld bc, $9861
+    ld hl, $C101
+
+.checkBytePrint
+    ld a, [hli]                     ; Load next value from RAM
+    and a                           ; And check if zero
+    jr z, .skipPrint                ; If it is, skip error print
+    ld a, l                         ; Otherwise, load lower byte
+    dec a                           ; Minus 1
+    push bc
+    call AtoASCII                   ; And convert to ASCII
+    pop bc
+    ld a, d                         ; Load first char
+    ld [bc], a                      ; Write to VRAM
+    inc bc                          ; And increment VRAM pointer
+    ld a, e                         ; Load second char
+    ld [bc], a                      ; Write to VRAM
+    inc bc                          ; And increment VRAM pointer
+    ld a, ","                       ; Load comma char
+    ld [bc], a                      ; Write to VRAM
+    inc bc                          ; And increment VRAM pointer
+    ld a, c                         ; Load lower VRAM pointer byte
+    and $13                         ; Check if at end of line
+    cp $13                          ; Set zero-flag if so
+    jr nz, .skipLinebreak           ; Otherwise, skip linebreak
+    ld a, c                         ; Load lower VRAM pointer byte
+    add $0e                         ; And add $0E
+    ld c, a                         ; Load back into pointer
+    jr nc, .skipLinebreakOverflow   ; Skip overflow if add caused no carry
+    inc b                           ; Otherwise increment upper byte
+.skipLinebreakOverflow
+.skipLinebreak
+.skipPrint
+    dec l                           ; Decrement lower RAM pointer byte
+    inc l                           ; Set zero flag if value was zero
+    jr nz, .checkBytePrint          ; If not, check next byte
+
+    dec c
+    xor a
+    ld [bc], a
+
+    ret
+
+;--------------------------------------------------------------------
+; Loads VRAM to display test pass message
+;--------------------------------------------------------------------
+TestPassed::
+    ld hl, $9821
+    ld de, strPass
+    call PrintStr
+    ret
+
+;--------------------------------------------------------------------
+; Compares the results stored in RAM at $C101 - $C1FF and overwrites
+; them with $00 if they match. Non-matching results are overwritten
+; with non-zero values.
+;--------------------------------------------------------------------
+CompareResults::
+    ld hl, $C101                 ; Load RAM pointer
+    ld de, StatTestData          ; Load compare data pointer
+    ld b, $00                    ; Initialize error counter
+.compareByte
+    ld a, [de]                   ; Load compare data into A
+    xor [hl]                     ; XOR with value from RAM
+    ld [hli], a                  ; Load result into RAM
+    jr z, .skipFailInc           ; If equal, skip B increment
+    inc b                        ; Otherwise increment error counter
+.skipFailInc
+    inc de                       ; Increment data pointer
+    dec l                        ; Decrement L
+    inc l                        ; And increment, setting Z if L==0
+    jr nz, .compareByte          ; If L != 0, compare another byte
+
+    ret
+
+;--------------------------------------------------------------------
+; Automatically tests with NOP values $01 - $FF and stores the
+; results in RAM from $C101 - $C1FF
+;--------------------------------------------------------------------
+AutoTest::
+    ld hl, $C101
+    ld a, $01
+
+.testIteration
+    ld [$C001], a
+    push hl
+    call RunTest
+    ld a, [$C000]
+    pop hl
+    ld [hli], a
+    ld a, [$C001]
+    inc a
+    jp nz, .testIteration
+
+    call StopLCD
+
+    ret
+
+;--------------------------------------------------------------------
+; Runs the test and updates values in RAM
+;--------------------------------------------------------------------
+RunTest::
+    call StopLCD                       ; Stop LCD while preparing test
+
+    ld hl, nopBase                     ; Load clockslide base
+    xor a                              ; Set A to 0
+    ld d, a                            ; And load upper add byte
+    ld a, [$C001]                      ; Load NOP count into A
+    ld e, a                            ; Buffer NOP count in E
+    ld a, $FF                          ; Set A to $FF
+    sub e                              ; Subtract NOP count
+    ld e, a                            ; Load lower add byte
+    add hl, de                         ; Add clockslide offset to pointer
+
+    ld c, $41                          ; Load $41 for STAT read
+
+    ld a, [$C001]                      ; Load NOP count into A
+    cp 1                               ; Check if running 1 NOP
+    jr z, .singleNopTest               ; If so, run different test routine
+
+    ld a, %10000001                    ; Enable LCD and Background
+    ld [rLCDC], a
+
+    jp hl                              ; Start clockslide NOPs
+
+.singleNopTest                         ; Skips JP HL, saving 1 NOP
+    ld a, %10000001                    ; Enable LCD and Background
+    ld [rLCDC], a
+
+    ld a, [$FF00+c]                    ; Acts as NOP before read
+    ld [$C000], a                      ; Load STAT into memory
+    ret
+
+;--------------------------------------------------------------------
+; 253 NOPs followed by code to store STAT in RAM
+;  - 1 Cycle timeout by JP HL
+;  - 1 Cycle timeout by LD A, [$FF00+C]
+;  => 253 NOP instructions for 255 NOPs
+;
+; Prerequisite:
+;  - C must be loaded with $41
+;--------------------------------------------------------------------
+nopBase:
+REPT $FD
+    nop
+ENDR
+    ld a, [$FF00+c]                    ; Acts as NOP before read
+    ld [$C000], a                      ; Load STAT into memory
+    ret
+
+;--------------------------------------------------------------------
+; Initializes Registers for Test
+;--------------------------------------------------------------------
+InitTest::
+    call InitRAM                       ; Initialize RAM with $00
+    call LoadFont                      ; Load font tiles into VRAM
+
+    ld a, $01                          ; Load A with minimum NOPs,
+    ld [$C001], a                      ; and load into NOP reg
+    
+    ld a, %11100100                    ; Initialize BGP
+    ld [rBGP], a
+    ld [rLYC], a                       ; Disable LYC
+
+    xor a                              ; Load A with 0
+    ld [rSCY], a                       ; Initialize SCY
+    ld [rSCX], a                       ; Initialize SCX
+    ld [rNR52], a                      ; Turn off sound
+    ld [rSTAT], a                      ; Disable all STAT triggers
+
+    ld a, %10000001                    ; Enable LCD and Background
+    ld [rLCDC], a
+
+    ret
+
+;--------------------------------------------------------------------
+; Converts the value in A reg to two hex ASCII bytes
+;
+; Inputs:
+;  - A : Value to convert
+;
+; Outputs:
+;  - DE : ASCII bytes
+;
+; Source:
+; https://stackoverflow.com/questions/22838444/convert-an-8bit-number-to-hex-in-z80-assembler
+;--------------------------------------------------------------------
+AtoASCII::
+    ld c, a
+    call .num1
+    ld d, a
+    ld a, c
+    call .num2
+    ld e, a
+    ret
+.num1
+    rra 
+    rra 
+    rra 
+    rra 
+.num2
+    or $F0
+    daa 
+    add a, $A0
+    adc a, $40
+    ret
+
+;--------------------------------------------------------------------
+; Initializes RAM $C000-$CFFF with zero
+;--------------------------------------------------------------------
+InitRAM::
+    ld hl, $C000
+.initByteRAM
+    xor a
+    ld [hli], a
+    ld a, h
+    cp $D0
+    jr nz, .initByteRAM
+    ret
+
+;--------------------------------------------------------------------
+; Loads font tiles into VRAM
+;--------------------------------------------------------------------
+LoadFont::
+    ld hl, $9000                       ; Tile Data starting address
+    ld de, FontTiles                   ; ROM Tile Pointer
+    ld bc, FontTilesEnd - FontTiles    ; Tile Data byte count
+.copyFont
+    ld a, [de]                         ; Load A with tile data byte
+    ld [hli], a                        ; And load into VRAM
+    inc de                             ; Go to next byte in ROM
+    dec bc                             ; And decrement count
+    ld a, b                            ; Load high byte of count
+    or c                               ; And OR with high byte
+    jr nz, .copyFont                   ; Repeat if count is not 0
+    ret 
+
+;--------------------------------------------------------------------
+; Copies tiles to display a given string to VRAM
+;
+; Inputs:
+;  - HL : Copy Destination
+;  - DE : String Pointer
+;--------------------------------------------------------------------
+PrintStr::
+.copyString
+    ld a, [de]                         ; Load string byte into A
+    ld [hli], a                        ; And into VRAM
+    inc de                             ; Increment string pointer
+    and a                              ; And check if null byte
+    jr nz, .copyString                 ; Repeat if not
+    ret
+
+;--------------------------------------------------------------------
+; Waits for VBlank then stops LCD
+;--------------------------------------------------------------------
+StopLCD::
+    call WaitVBlank                    ; Wait for VBlank
+    xor a                              ; Set A to 0
+    ld [rLCDC], a                      ; Load 0 to LCDC
+    ret
+
+;--------------------------------------------------------------------
+; Waits for VBlank then returns
+;--------------------------------------------------------------------
+WaitVBlank::
+.vblLoop
+    ld a, [rLY]                        ; Load current LY into A
+    cp 144                             ; Check if scanline is 144 (VBlank)
+    jr nz, .vblLoop                    ; If not, repeat
+    ret
+
+;--------------------------------------------------------------------
+;
+; # DATA SECTION
+;
+;--------------------------------------------------------------------
+
+;--------------------------------------------------------------------
+; Strings
+;--------------------------------------------------------------------
+section "Strings", rom0
+strPass:
+    db "Test OK!", 0
+strFail:
+    db "Test failed:", 0
+
+;--------------------------------------------------------------------
+; STAT Tests
+;--------------------------------------------------------------------
+section "TestDataSTAT", rom0[$1000]
+StatTestData:
+
+; Scanline 0
+REPT 18
+    db $80
+ENDR
+REPT 43
+    db $83
+ENDR
+REPT 51
+    db $80
+ENDR
+
+; Scanline 1
+REPT 20
+    db $82
+ENDR
+REPT 43
+    db $83
+ENDR
+REPT 51
+    db $80
+ENDR
+
+; Scanline 2
+REPT 20
+    db $82
+ENDR
+REPT 9             ; Only 9 more to add up to 256 bytes of test data
+    db $83
+ENDR
+
+;--------------------------------------------------------------------
+; Font Tile Data
+;--------------------------------------------------------------------
+section "Font", rom0
+FontTiles:
+incbin "inc/font.chr"
+FontTilesEnd:

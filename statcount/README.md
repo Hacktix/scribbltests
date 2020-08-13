@@ -15,12 +15,28 @@ Once the desired amount of NOPs has been selected, press START to run the test. 
 
 The "Test" label will read either `OK` or `!XXh`. If it is not `OK`, the value shown instead of `XX` is what was expected based on the selected amount of NOPs.
 
+### statcount-auto.gb
+
+The STATcount-auto ROM is an automated version of the STATcount test. It iterates over NOP options $01 to $FF and validates the results. If all results match up with the expected values, a "Test OK!" label will show up. If there are errors, a "Test failed:" label will show up, followed by a list of NOP-count options that the tests failed for, formatted as 2-digit hex numbers.
+
 ## Screenshots
 
-### Test Failed
+### statcount.gb
+
+#### Test Failed
 
 ![testfailed](./screenshots/fail.png)
 
-### Test Passed
+#### Test Passed
 
 ![testpassed](./screenshots/pass.png)
+
+### statcount-auto.gb
+
+#### Test Failed
+
+![auto-fail](./screenshots/auto-fail.png)
+
+#### Test Passed
+
+![auto-pass](./screenshots/auto-pass.png)
