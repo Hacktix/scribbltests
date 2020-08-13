@@ -50,7 +50,7 @@ main::
 
     ld a, $03           ; Allow only VBlank & LCD STAT interrupts
     ld [rIE], a
-    ld a, $1F           ; Enable HBlank STAT interrupts
+    ld a, $0F           ; Enable HBlank STAT interrupts
     ld [rSTAT], a
 
     ld a, %10010001     ; Enable LCD & background tilemap $8000

@@ -7,13 +7,20 @@ The PaletteLY test is intended to test basic functionality of the BGP register a
 * ✔ Gameboy Pocket (MGB 9638 D)
 * ✔ Gameboy Color (CPU CGB D)
 
-## Requirements
+## Minimum Requirements
 
-* Functional CPU
-* Correctly working LY register
-* Correctly working bit 4 of LCDC
-* Functional Interrupts (at least LCD STAT and VBlank)
-  * LCD STAT requires LY=LYC interrupts to work
+* **CPU:**
+  * Functional Instructions
+  * Basic Instruction Timing
+  * Memory Access Timing **not** required
+* **Interrupts:**
+  * VBlank Interrupt
+  * LYC=LY STAT Interrupt
+* **PPU:**
+  * LCDC Bits 0, 4 and 7
+  * Functional LY Register
+  * Functional Background Display
+  * Functional Background Palette (BGP)
 
 ## Expected Output
 

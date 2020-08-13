@@ -9,11 +9,19 @@ The SCXLY test is intended to test basic functionality of SCX and STAT/VBlank in
 
 ## Requirements
 
-* Functional CPU
-* Correctly working LY register
-* Correctly working bit 4 of LCDC
-* Functional Interrupts (at least LCD STAT and VBlank)
-  * LCD STAT requires HBlank interrupts to work
+* **CPU:**
+  * Functional Instructions
+  * Basic Instruction Timing
+  * Memory Access Timing **not** required
+* **Interrupts:**
+  * VBlank Interrupt
+  * HBlank STAT Interrupt
+* **PPU:**
+  * LCDC Bits 0, 4 and 7
+  * Functional LY Register
+  * Functional Background Display
+  * Functional Background Palette (BGP)
+  * Horizontal Scrolling (SCX Register)
 
 ## Expected Output
 
