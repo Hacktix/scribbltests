@@ -117,7 +117,7 @@ RunTest::
     ld d, a                            ; And load upper add byte
     ld a, [$C001]                      ; Load NOP count into A
     ld e, a                            ; Buffer NOP count in E
-    xor a                              ; Clear A
+    ld a, $FF                          ; Set A to $FF
     sub e                              ; Subtract NOP count
     ld e, a                            ; Load lower add byte
     add hl, de                         ; Add clockslide offset to pointer
@@ -409,8 +409,8 @@ StatTestData:
 
 ; Scanline 0
 ; NOP 0 cannot be read => unknown
-db $FF, $80, $81
-REPT 17
+db $FF
+REPT 18
     db $80
 ENDR
 REPT 43
@@ -435,7 +435,7 @@ ENDR
 REPT 20
     db $82
 ENDR
-REPT 8             ; Only 8 more to add up to 256 bytes of test data
+REPT 9             ; Only 9 more to add up to 256 bytes of test data
     db $83
 ENDR
 
