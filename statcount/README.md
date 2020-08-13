@@ -7,6 +7,23 @@ The STATcount ROM is intended as an emulator debugging tool to assist with PPU t
 * ✔ Gameboy Pocket (MGB 9638 D)
 * ✔ Gameboy Color (CPU CGB D)
 
+## Minimum Requirements
+
+* **CPU:**
+  * Functional Instructions
+  * Accurate Instruction Timing (especially `nop`, `jp hl` and `ld a,[$ff00+c]`)
+  * Memory Access Timing **required** (at least for `ld a,[$ff00+c]`)
+* **Interrupts:**
+  * VBlank Interrupts
+* **PPU:**
+  * LCDC Bit 7
+  * Functional LY Register
+  * Functional STAT Register (including bit 7 reading as constant `1`)
+  * Accurately timed Mode-loop (including scanline 0 after enabling LCD)
+* **Other:**
+  * Functional Joypad (not required for `statcount-auto.gb`)
+  * Functional WRAM ($C000 - $CFFF)
+
 ## Usage
 
 After starting up the ROM the amount of machine cycles to wait can be modified using the Up / Down buttons. The minimum amount of NOPs is 1 (as memory read instructions *should* have a latency before actually reading the value from memory).
