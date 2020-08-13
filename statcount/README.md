@@ -15,8 +15,6 @@ Once the desired amount of NOPs has been selected, press START to run the test. 
 
 The "Test" label will read either `OK` or `!XXh`. If it is not `OK`, the value shown instead of `XX` is what was expected based on the selected amount of NOPs.
 
-**Note:** Due to oddities with the first scanline after enabling LCD, test results with NOPs between 01h and 72h NOPs may not be accurate. The value displayed as `STAT` however is correct.
-
 ## Screenshots
 
 ### Test Failed
@@ -25,4 +23,4 @@ The "Test" label will read either `OK` or `!XXh`. If it is not `OK`, the value s
 
 ### Test Passed
 
-![testfailed](./screenshots/pass.png)
+![testpassed](./screenshots/pass.png)
