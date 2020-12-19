@@ -8,6 +8,7 @@ include "inc/hardware.inc"
 ;--------------------------------------------------------------------
 
 section	"VBlank", rom0[$0040]
+    call endFrame
 	reti
 section	"LCDC", rom0[$0048]
 	reti
@@ -37,6 +38,7 @@ Main::
     call CompareResults                ; Process results
 
     ld a, b
+    push af                            ; Store the result for later
     and a
     call z, TestPassed
     call nz, TestFailed
@@ -44,9 +46,36 @@ Main::
     ld a, %10000001                    ; Enable LCD and Background
     ld [rLCDC], a
 
+    ld a, 1
+    ld [rIE], a                        ; Enable Vblank so we can know when
+                                       ; the frame ends drawing this frame
+
+    ei                                 ; Enable interrupts
+
+    pop af                             ; Get the results back
+    ld b, 10                           ; Loop for 10 frames before breakpoint
+
 MainLoop:
     halt
     jr MainLoop
+
+
+;--------------------------------------------------------------------
+;
+; Handler for VBlank interrupt.
+; Called every frame, fire breakpoint to mark the end of the test
+;
+;--------------------------------------------------------------------
+endFrame::
+    dec b
+    jr nz, .skip
+
+    ld b, b                            ; Fire a software breakpoint
+                                       ; register `a` should have the number
+                                       ; of wrong stats
+
+.skip:
+    ret
 
 ;--------------------------------------------------------------------
 ; Loads VRAM to display test fail message

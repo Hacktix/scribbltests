@@ -58,6 +58,8 @@ main::
     ld [rLCDC], a
     
     ei                  ; Enable Interrupts
+
+    ld b, 10
     
 .lockup                 ; Prevent PC from going to crazy places
     halt
@@ -90,6 +92,13 @@ endFrame::
     ld [rLYC], a
     xor a               ; Reload SCY
     ld [rSCY], a
+
+    dec b
+    jr nz, .skip
+
+    ld b, b
+
+.skip:
     ret
 
 ;--------------------------------------------------------------------
