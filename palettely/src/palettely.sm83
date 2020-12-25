@@ -60,6 +60,8 @@ main::
     ld hl, rBGP
     
     ei                  ; Enable Interrupts
+
+    ld b, 10
     
 .lockup                 ; Prevent PC from going to crazy places
     halt
@@ -91,6 +93,13 @@ endFrame::
     ld [rLYC], a
     ld a, %11100100     ; Reload BGP
     ld [rBGP], a
+
+    dec b
+    jr nz, .skip
+
+    ld b, b
+
+.skip:
     ret
 
 ;--------------------------------------------------------------------

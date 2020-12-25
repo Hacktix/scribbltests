@@ -57,6 +57,8 @@ main::
     ld [rLCDC], a
     
     ei                  ; Enable Interrupts
+
+    ld b, 10
     
 .lockup                 ; Prevent PC from going to crazy places
     halt
@@ -89,6 +91,13 @@ endFrame::
     ld [rSCX], a        ; And load it into SCX
     ld a, [hl]          ; Load initial BGP from RAM
     ld [rBGP], a        ; And into the BGP register
+
+    dec b
+    jr nz, .skip
+
+    ld b, b
+
+.skip:
     ret
 
 ;--------------------------------------------------------------------

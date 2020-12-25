@@ -61,6 +61,8 @@ main::
     
     ei                  ; Enable Interrupts
     
+    ld b, 10            ; Fire software interrupt after 10 frames
+
 .lockup                 ; Prevent PC from going to crazy places
     halt
     jr .lockup
@@ -89,6 +91,13 @@ endFrame::
     xor a               ; Clear A register
     ld [rLYC], a        ; Reload LYC
     ld [rSCX], a        ; Reload SCX
+
+    dec b
+    jr nz, .skip
+
+    ld b, b
+
+.skip:
     ret
 
 ;--------------------------------------------------------------------
