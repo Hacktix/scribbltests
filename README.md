@@ -6,6 +6,6 @@ The Scribbltests are a (currently very limited) collection of self-written test 
 
 ### Credits, Copyright or whatever
 
-The ROMs in this repository are all written by [me](https://github.com/Hacktix). Thanks to the [Emulation Development Discord](https://discord.gg/7nuaqZ2) as well as the [gbdev Discord](https://discord.gg/gpBxq85) for helping with debugging and verifying the tests, as well as motivating me to write these in the first place.
+The ROMs in this repository are all written by [me](https://github.com/Hacktix) with the addition of "soft breakpoints" added by [Amjad50](https://github.com/Amjad50). Thanks to the [Emulation Development Discord](https://discord.gg/7nuaqZ2) as well as the [gbdev Discord](https://discord.gg/gpBxq85) for helping with debugging and verifying the tests, as well as motivating me to write these in the first place.
 
 If you have any questions or just want to talk about Gameboy stuff, feel free to hit me up on Discord (Optix™#1337).
